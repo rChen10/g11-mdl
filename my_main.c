@@ -107,7 +107,6 @@ void my_main() {
   //modified from print_pcode.c
   for (i=0;i<lastop;i++)
     {
-      printf("%d: ",i);
       switch (op[i].opcode)
         {
         case LIGHT:
@@ -131,7 +130,7 @@ void my_main() {
 		     op[i].op.sphere.d[1],
 		     op[i].op.sphere.d[2],
 		     op[i].op.sphere.r,
-		     step_3D);
+		     step_3d);
 	  matrix_mult(peek(systems), tmp);
 	  draw_polygons(tmp,
 			t,
@@ -139,16 +138,18 @@ void my_main() {
 			view,
 			light,
 			ambient,
-			areflect, dreflect, sreflect,);
+			areflect, dreflect, sreflect);
 	  tmp->lastcol = 0;
           break;
+
         case TORUS:
 	  add_torus(tmp,
 		     op[i].op.torus.d[0],
 		     op[i].op.torus.d[1],
 		     op[i].op.torus.d[2],
-		     op[i].op.torus.r,
-		     step_3D);
+		     op[i].op.torus.r0,
+		     op[i].op.torus.r1,
+		     step_3d);
 	  matrix_mult(peek(systems), tmp);
 	  draw_polygons(tmp,
 			t,
@@ -156,131 +157,121 @@ void my_main() {
 			view,
 			light,
 			ambient,
-			areflect, dreflect, sreflect,);
+			areflect, dreflect, sreflect);
 	  tmp->lastcol = 0;
           break;
-        case BOX:
-          printf("Box: d0: %6.2f %6.2f %6.2f d1: %6.2f %6.2f %6.2f",
-                 op[i].op.box.d0[0],op[i].op.box.d0[1],
-                 op[i].op.box.d0[2],
-                 op[i].op.box.d1[0],op[i].op.box.d1[1],
-                 op[i].op.box.d1[2]);
-          if (op[i].op.box.constants != NULL)
-            {
-              printf("\tconstants: %s",op[i].op.box.constants->name);
-            }
-          if (op[i].op.box.cs != NULL)
-            {
-              printf("\tcs: %s",op[i].op.box.cs->name);
-            }
 
+        case BOX:
+	  add_box(tmp,
+		  op[i].op.box.d0[0],
+		  op[i].op.box.d0[1],
+		  op[i].op.box.d0[2],
+		  op[i].op.box.d1[0],
+		  op[i].op.box.d1[1],
+		  op[i].op.box.d1[2]);
+	  matrix_mult(peek(systems), tmp);
+	  draw_polygons(tmp,
+			t,
+			zb,
+			view,
+			light,
+			ambient,
+			areflect, dreflect, sreflect);
+	  tmp->lastcol = 0;
           break;
+
         case LINE:
-          printf("Line: from: %6.2f %6.2f %6.2f to: %6.2f %6.2f %6.2f",
-                 op[i].op.line.p0[0],op[i].op.line.p0[1],
-                 op[i].op.line.p0[1],
-                 op[i].op.line.p1[0],op[i].op.line.p1[1],
-                 op[i].op.line.p1[1]);
-          if (op[i].op.line.constants != NULL)
-            {
-              printf("\n\tConstants: %s",op[i].op.line.constants->name);
-            }
-          if (op[i].op.line.cs0 != NULL)
-            {
-              printf("\n\tCS0: %s",op[i].op.line.cs0->name);
-            }
-          if (op[i].op.line.cs1 != NULL)
-            {
-              printf("\n\tCS1: %s",op[i].op.line.cs1->name);
-            }
+	  add_edge(tmp,
+		   op[i].op.line.p0[0],
+		   op[i].op.line.p0[1],
+		   op[i].op.line.p0[2],
+		   op[i].op.line.p1[0],
+		   op[i].op.line.p1[1],
+		   op[i].op.line.p1[2]);
+	  matrix_mult(peek(systems), tmp);
+	  draw_lines(tmp, t, zb, g);
+	  tmp->lastcol = 0;
           break;
+
         case MESH:
-          printf("Mesh: filename: %s",op[i].op.mesh.name);
-          if (op[i].op.mesh.constants != NULL)
-            {
-              printf("\tconstants: %s",op[i].op.mesh.constants->name);
-            }
           break;
+
         case SET:
-          printf("Set: %s %6.2f",
-                 op[i].op.set.p->name,
-                 op[i].op.set.p->s.value);
           break;
+
         case MOVE:
-          printf("Move: %6.2f %6.2f %6.2f",
+	  tmp = make_translate(
                  op[i].op.move.d[0],op[i].op.move.d[1],
                  op[i].op.move.d[2]);
-          if (op[i].op.move.p != NULL)
-            {
-              printf("\tknob: %s",op[i].op.move.p->name);
-            }
+	  matrix_mult(peek(systems), tmp);
+	  copy_matrix(tmp, peek(systems));
+	  tmp->lastcol = 0;
           break;
+
         case SCALE:
-          printf("Scale: %6.2f %6.2f %6.2f",
+	  tmp = make_scale(
                  op[i].op.scale.d[0],op[i].op.scale.d[1],
                  op[i].op.scale.d[2]);
-          if (op[i].op.scale.p != NULL)
-            {
-              printf("\tknob: %s",op[i].op.scale.p->name);
-            }
+	  matrix_mult(peek(systems), tmp);
+	  copy_matrix(tmp, peek(systems));
+	  tmp->lastcol = 0;
           break;
+
         case ROTATE:
-          printf("Rotate: axis: %6.2f degrees: %6.2f",
-                 op[i].op.rotate.axis,
-                 op[i].op.rotate.degrees);
-          if (op[i].op.rotate.p != NULL)
-            {
-              printf("\tknob: %s",op[i].op.rotate.p->name);
-            }
+          theta = op[i].op.rotate.degrees * (M_PI / 180);
+          if ( op[i].op.rotate.axis == 0 )
+            tmp = make_rotX( theta );
+          else if ( op[i].op.rotate.axis == 1 )
+            tmp = make_rotY( theta );
+          else
+            tmp = make_rotZ( theta );
+	  matrix_mult(peek(systems), tmp);
+	  copy_matrix(tmp, peek(systems));
+	  tmp->lastcol = 0;
           break;
+
         case BASENAME:
-          printf("Basename: %s",op[i].op.basename.p->name);
           break;
+
         case SAVE_KNOBS:
-          printf("Save knobs: %s",op[i].op.save_knobs.p->name);
           break;
+
         case TWEEN:
-          printf("Tween: %4.0f %4.0f, %s %s",
-                 op[i].op.tween.start_frame,
-                 op[i].op.tween.end_frame,
-                 op[i].op.tween.knob_list0->name,
-                 op[i].op.tween.knob_list1->name);
           break;
+
         case FRAMES:
-          printf("Num frames: %4.0f",op[i].op.frames.num_frames);
           break;
+
         case VARY:
-          printf("Vary: %4.0f %4.0f, %4.0f %4.0f",
-                 op[i].op.vary.start_frame,
-                 op[i].op.vary.end_frame,
-                 op[i].op.vary.start_val,
-                 op[i].op.vary.end_val);
           break;
+
         case PUSH:
-          printf("Push");
+	  push(systems);
           break;
+
         case POP:
-          printf("Pop");
+	  pop(systems);
           break;
+
         case GENERATE_RAYFILES:
-          printf("Generate Ray Files");
           break;
+
         case SAVE:
-          printf("Save: %s",op[i].op.save.p->name);
+	  save_extension(t, op[i].op.save.p->name);
           break;
+
         case SHADING:
-          printf("Shading: %s",op[i].op.shading.p->name);
           break;
+
         case SETKNOBS:
-          printf("Setknobs: %f",op[i].op.setknobs.value);
           break;
+
         case FOCAL:
-          printf("Focal: %f",op[i].op.focal.value);
           break;
+
         case DISPLAY:
-          printf("Display");
+	  display(t);
           break;
         }
-      printf("\n");
     }
 }
